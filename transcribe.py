@@ -3,25 +3,38 @@
 import os
 import dotenv
 import assemblyai as aai
+import argparse
+from tqdm import tqdm
 
 dotenv.load_dotenv()
 
-# Replace with your API token
+# Set up argument parser
+parser = argparse.ArgumentParser(description='Transcribe audio file with speaker labels')
+parser.add_argument('file_path', help='Path to the audio file to transcribe')
+args = parser.parse_args()
+
+# Get file size for progress bar
+file_size = os.path.getsize(args.file_path)
+
+# Initialize AssemblyAI
 aai.settings.api_key = os.getenv('ASSEMBLY_API_KEY')
-
-# URL of the file to transcribe
-FILE_URL = "https://github.com/AssemblyAI-Examples/audio-examples/raw/main/20230607_me_canadian_wildfires.mp3"
-
-# You can also transcribe a local file by passing in a file path
-# FILE_URL = './path/to/file.mp3'
-
 config = aai.TranscriptionConfig(speaker_labels=True)
 
+# Create progress bar and read file
+with open(args.file_path, 'rb') as audio_file:
+    with tqdm(total=file_size, unit='B', unit_scale=True, desc='Uploading') as pbar:
+        data = b''
+        while chunk := audio_file.read(8192):  # Read in 8KB chunks
+            data += chunk
+            pbar.update(len(chunk))
+
+# Transcribe with loaded data
 transcriber = aai.Transcriber()
 transcript = transcriber.transcribe(
-  FILE_URL,
-  config=config
+    data,
+    config=config
 )
 
+# Print results
 for utterance in transcript.utterances:
-  print(f"Speaker {utterance.speaker}: {utterance.text}")
+    print(f"Speaker {utterance.speaker}: {utterance.text}")
